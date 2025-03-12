@@ -1,0 +1,49 @@
+@startuml
+!include <C4/C4>
+!include <C4/C4_Container>
+
+title Диаграмма контейнеров "MVP: Автоматизация записи и защиты данных"
+
+Person(Patient, "Пациент", "Через веб-портал записывается на приём, видит свою информацию")
+Person(Receptionist, "Администратор", "Управляет записями, напоминает о приёмах")
+Person(Doctor, "Врач", "Просматривает расписание и ведёт мед. данные по пациентам")
+Person(Bookkeeper, "Бухгалтер", "Ведёт финансовый учёт, проверяет оплату")
+
+System_Boundary("MedicamenteSystem", "Медикаменте (MVP)") {
+
+   Container(WebPortal, "Web Portal (UI)", "React/Angular", "Доступен пациентам и сотрудникам (через роли)")
+   Container(AuthService, "Auth & Identity Service", "Keycloak / OAuth2", "Аутентификация и авторизация (RBAC/ABAC)")
+
+   Container(AppointmentSvc, "Appointment Service", "Java/Spring Boot", "CRUD записей, расписание, уведомления")
+   ContainerDb(AppointmentDB, "Appointment DB", "PostgreSQL", "Слоты, записи, ссылки на пациентов (минимум PII)")
+
+   Container(CRMsvc, "CRM / Patient Data Service", "Java/.NET", "Обработка PII (контакты, согласия), хранение данных клиента")
+   ContainerDb(PatientDB, "Patient DB", "PostgreSQL", "Зашифровано, содержит персональные данные (Ф. И. О., телефон и др.)")
+
+   Container(MedicalRecordsSvc, "Medical Records Service", "Python/Java", "Работа с мед. картами (результаты анализов, заключения)")
+   ContainerDb(MedRecordsDB, "Medical Records DB", "PostgreSQL / File Storage", "Зашифровано, хранит конфиденциальные мед. данные (MED)")
+}
+
+Container_Ext(OneC, "1С Бухгалтерия предприятия", "1С", "Учет финансов, зарплат, налогов и др.")
+Container_Ext(EmailGateway, "Email/SMS Gateway", "SMTP/SMS", "Отправка уведомлений о записи")
+
+
+Rel(Patient, WebPortal, "Записывается, просматривает свои визиты", "HTTPS")
+Rel(WebPortal, AuthService, "OAuth2 / JWT для входа", "HTTPS/REST")
+
+Rel(WebPortal, AppointmentSvc, "Управление расписанием, слотами", "HTTPS/REST + JWT")
+Rel(AppointmentSvc, AppointmentDB, "Чтение/запись расписания и записей", "JDBC/SQL")
+
+Rel(AppointmentSvc, CRMsvc, "Запрашивает/обновляет PII пациента", "HTTPS/REST")
+Rel(CRMsvc, PatientDB, "CRUD над карточками пациентов (зашифровано)", "JDBC/SQL")
+
+Rel(Doctor, MedicalRecordsSvc, "Редактирует/смотрит мед. данные", "HTTPS/REST (через UI или напрямую)")
+Rel(MedicalRecordsSvc, MedRecordsDB, "Хранение/чтение мед. данных (MED)", "JDBC/SQL")
+
+Rel(Receptionist, WebPortal, "Управляет записями, видит контакты (в рамках роли)", "HTTPS")
+
+Rel(Bookkeeper, OneC, "Проверяет платежи, формирует отчеты", "Внешняя синхронизация/OLE")
+
+Rel(AppointmentSvc, EmailGateway, "Отправляет уведомления (e-mail/SMS)", "SMTP/HTTP")
+
+@enduml
